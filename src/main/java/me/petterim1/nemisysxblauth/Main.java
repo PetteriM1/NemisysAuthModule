@@ -52,17 +52,21 @@ public class Main extends PluginBase implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void receiveDataPacket(DataPacketReceiveEvent e) {
         if (e.getPacket() instanceof LoginPacket) {
-            if (!auth((LoginPacket) e.getPacket())) {
-                Player p = e.getPlayer();
-                e.setCancelled(true);
-                p.close("Not authenticated", false);
-                DisconnectPacket pk = new DisconnectPacket();
-                pk.hideDisconnectionScreen = false;
-                pk.message = "disconnectionScreen.notAuthenticated";
-                p.sendDataPacket(pk, true);
-                //p.getServer().getNetwork().blockAddress(p.getSocketAddress().getAddress(), 5);
-                //p.getServer().getLogger().notice("Blocked " + p.getAddress() + " for 5 seconds due to failed Xbox auth");
+            try {
+                if (auth((LoginPacket) e.getPacket())) {
+                    return;
+                }
+            } catch (Exception ignore) {
             }
+            Player p = e.getPlayer();
+            e.setCancelled(true);
+            p.close("Not authenticated", false);
+            DisconnectPacket pk = new DisconnectPacket();
+            pk.hideDisconnectionScreen = false;
+            pk.message = "disconnectionScreen.notAuthenticated";
+            p.sendDataPacket(pk, true);
+            //p.getServer().getNetwork().blockAddress(p.getSocketAddress().getAddress(), 5);
+            //p.getServer().getLogger().notice("Blocked " + p.getAddress() + " for 5 seconds due to failed Xbox auth");
         }
     }
 
