@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
 import org.itxtech.nemisys.Player;
+import org.itxtech.nemisys.Server;
 import org.itxtech.nemisys.event.EventHandler;
 import org.itxtech.nemisys.event.Listener;
 import org.itxtech.nemisys.event.server.DataPacketReceiveEvent;
@@ -22,6 +23,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -84,8 +86,9 @@ public class Main extends PluginBase implements Listener {
         try {
             ECPublicKey lastKey = null;
             boolean mojangKeyVerified = false;
-            for (String chain : chains) {
-                JWSObject jws = JWSObject.parse(chain);
+            Iterator<String> iterator = chains.iterator();
+            while (iterator.hasNext()) {
+                JWSObject jws = JWSObject.parse(iterator.next());
                 URI x5u = jws.getHeader().getX509CertURL();
                 if (x5u == null) {
                     return false;
@@ -99,18 +102,21 @@ public class Main extends PluginBase implements Listener {
                 if (!jws.verify(new ECDSAVerifier(lastKey))) {
                     return false;
                 }
+                if (mojangKeyVerified) {
+                    return !iterator.hasNext();
+                }
                 if (lastKey.equals(MOJANG_PUBLIC_KEY)) {
                     mojangKeyVerified = true;
                 }
-                String base64key = jws.getPayload().toJSONObject().getAsString("identityPublicKey");
-                if (base64key == null) {
+                Object base64key = jws.getPayload().toJSONObject().get("identityPublicKey");
+                if (!(base64key instanceof String)) {
                     throw new RuntimeException("No key found");
                 }
-                lastKey = generateKey(base64key);
+                lastKey = generateKey((String) base64key);
             }
             return mojangKeyVerified;
         } catch (Exception e) {
-            e.printStackTrace();
+            Server.getInstance().getLogger().logException(e);
             return false;
         }
     }
