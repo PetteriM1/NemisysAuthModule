@@ -1,6 +1,7 @@
 package me.petterim1.nemisysxblauth;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -22,10 +23,7 @@ import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Main extends PluginBase implements Listener {
 
@@ -89,7 +87,25 @@ public class Main extends PluginBase implements Listener {
         if (length > 3000000) return false;
         Map<String, List<String>> map = GSON.fromJson(new String(bs.get(length), StandardCharsets.UTF_8), new MapTypeToken().getType());
         if (map.isEmpty() || !map.containsKey("chain") || map.get("chain").isEmpty()) return false;
-        return verifyChain(map.get("chain"));
+        if (verifyChain(map.get("chain"))) {
+            long time = System.currentTimeMillis();
+            for (String c : map.get("chain")) {
+                JsonObject chainMap = decodeToken(c);
+                if (chainMap == null) continue;
+                if (chainMap.has("extraData")) {
+                    if (chainMap.has("nbf") && chainMap.get("nbf").getAsLong() * 1000 > time + 60) {
+                        Server.getInstance().getLogger().info("Auth failed: nbf");
+                        return false;
+                    }
+                    if (chainMap.has("exp") && chainMap.get("exp").getAsLong() * 1000 < time - 60) {
+                        Server.getInstance().getLogger().info("Auth failed: exp");
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     private static boolean verifyChain(List<String> chains) {
@@ -129,6 +145,12 @@ public class Main extends PluginBase implements Listener {
             Server.getInstance().getLogger().logException(e);
             return false;
         }
+    }
+
+    private static JsonObject decodeToken(String token) {
+        String[] base = token.split("\\.");
+        if (base.length < 2) return null;
+        return GSON.fromJson(new String(Base64.getDecoder().decode(base[1]), StandardCharsets.UTF_8), JsonObject.class);
     }
 
     private static class MapTypeToken extends TypeToken<Map<String, List<String>>> {
