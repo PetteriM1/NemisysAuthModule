@@ -47,7 +47,7 @@ public class Main extends PluginBase implements Listener {
     @Override
     public void onEnable() {
         try {
-            if (!getServer().getPropertyBoolean("call-data-pk-receive-ev")) {
+            if (!getServer().getPropertyBoolean("call-data-pk-receive-ev") && !getServer().getPropertyBoolean("custom-stuff")) {
                 getLogger().alert("call-data-pk-receive-ev is not enabled in server.properties!");
                 getServer().shutdown();
                 return;
